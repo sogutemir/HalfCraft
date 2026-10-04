@@ -138,7 +138,12 @@ void regression() {
 }
 }
 
-void HCGameDLLInit() { GameDLLInit(); hc::init(); }
+static cvar_t hc_autostart={"hc_autostart","0",0};
+void HCGameDLLInit() {
+    GameDLLInit(); CVAR_REGISTER(&hc_autostart);
+    if(g_engfuncs.pfnCheckParm && g_engfuncs.pfnCheckParm("-halfcraft-play",nullptr)) CVAR_SET_FLOAT("hc_autostart",1);
+    hc::init();
+}
 void HCStartFrame() { StartFrame(); hc::frame(); }
 void HCServerActivate(edict_t* edicts,int count,int clients) { ServerActivate(edicts,count,clients); hc::init(); hc::frame(); }
 void HCServerDeactivate() { ServerDeactivate(); if(hc::shared) { std::lock_guard<std::mutex> guard(hc::lock); hc::latest.playerPresent=0; hc::latest.map[0]=0; } }

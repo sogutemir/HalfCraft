@@ -322,10 +322,14 @@ void cursorCommand() {
 }
 }
 void HCClientInit() {
+    char playFlag[]="-halfcraft-play";
+    bool play=gEngfuncs.CheckParm && gEngfuncs.CheckParm(playFlag,nullptr)!=0;
+    requested=play;
     gEngfuncs.pfnAddCommand("hc_render_probe",probeCommand); gEngfuncs.pfnAddCommand("hc_input",inputCommand);
     gEngfuncs.pfnAddCommand("hc_look",lookCommand);
     gEngfuncs.pfnAddCommand("hc_ui_cursor",cursorCommand);
-    background=gEngfuncs.pfnRegisterVariable("hc_background","0",0);
+    background=gEngfuncs.pfnRegisterVariable("hc_background",play?"1":"0",0);
+    if(play) gEngfuncs.Cvar_SetValue("hc_background",1);
     if(!input) {
         inputHandle=CreateFileMappingW(INVALID_HANDLE_VALUE,nullptr,PAGE_READWRITE,0,halfcraft_input::Bytes,halfcraft_input::Mapping);
         input=inputHandle?static_cast<halfcraft_input::Shared*>(MapViewOfFile(inputHandle,FILE_MAP_ALL_ACCESS,0,0,halfcraft_input::Bytes)):nullptr;

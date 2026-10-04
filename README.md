@@ -10,6 +10,8 @@ Nearby Minecraft blocks now stop native HL NPCs through invisible engine solids;
 
 ## Play from Half-Life
 
+Double-click `HalfCraft.bat` for normal gameplay. It starts the dedicated Minecraft instance and Half-Life's menu in fullscreen at the primary monitor's highest enumerated 32-bit display resolution, with developer mode and cheats disabled. Choose New Game or load a save; the bridge enables when Minecraft and the native player are ready. No console commands are needed. The launcher currently uses the development machine's Half-Life path in `tools/launch-play.ps1`.
+
 Build/deploy now includes both `dlls/hl.dll` and `cl_dlls/client.dll`. Launch dedicated games, then F10 console:
 
 ```text

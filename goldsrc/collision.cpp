@@ -137,6 +137,7 @@ void nativeMode(edict_t* p,bool value) {
 void frame() {
     init(); if(!shared) return;
     edict_t* p=INDEXENT(1);
+    if(!enabled && !resumeRequested && CVAR_GET_FLOAT("hc_autostart")!=0) resumeRequested=true;
     if(resumeRequested && std::int32_t(GetTickCount()-resumeAfter)>=0 && canEnable(p)) enable(p);
     if(enabled && (!hc::connected || !p || p->free || p->v.deadflag!=DEAD_NO || p->v.health<=0
         || p->v.flags&FL_FROZEN)) suspend("native death/control or guest lost");
@@ -152,7 +153,7 @@ void frame() {
 }
 void command(edict_t* p) {
     init();
-    if(!std::strcmp(CMD_ARGV(1),"0")) { release("command"); publish(); return; }
+    if(!std::strcmp(CMD_ARGV(1),"0")) { CVAR_SET_FLOAT("hc_autostart",0); release("command"); publish(); return; }
     if(std::strcmp(CMD_ARGV(1),"1") || (!enabled && !canEnable(p))) { ALERT(at_console,"HC_PHYSICS refused: connected standing WALK player required; hc_physics 0|1\n"); return; }
     if(enabled) return;
     enable(p);
