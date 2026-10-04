@@ -1,5 +1,15 @@
 # HalfCraft
 
+![HalfCraft gameplay in Black Mesa with Minecraft bow, armor, hearts and hotbar](docs/halfcraft-gameplay.png)
+
+## Screenshots
+
+| Crafting | Furnace |
+|---|---|
+| ![Minecraft crafting table and inventory inside Half-Life](docs/halfcraft-crafting.png) | ![Minecraft furnace cooking food inside Half-Life](docs/halfcraft-furnace.png) |
+| Block building | Bow combat |
+| ![Minecraft cobblestone construction in a Half-Life map](docs/halfcraft-blocks.png) | ![Minecraft bow aimed at a Half-Life soldier](docs/halfcraft-bow.png) |
+
 Real Half-Life / GoldSrc + authenticated Minecraft Java / Fabric, connected through Windows shared memory. **First observation-only bridge milestone verified on 2026-10-04.** Measured results: [verified_bridge.txt](verified_bridge.txt).
 
 **Current phase:** Native Half-Life movement with Minecraft inventory/crafting, chest storage, HUD/hand, renewable resource mining, block entities and campaign inventory continuity. Minecraft health, hunger and worn armor handle bridged native damage, healing and armor repair. Enemy combat uses Minecraft weapons with confirmed-kill loot and XP. Full-campaign acceptance remains incomplete; the linked reports and earlier physics results include historical baselines.
