@@ -16,13 +16,13 @@ Real Half-Life / GoldSrc + authenticated Minecraft Java / Fabric, connected thro
 
 Latest combined build passed: GoldSrc host/client, C++/Java layout checks, 21 upstream Java tests, Python protocol/collision/client checks and seeded loot checks. Live native damage/fall/heal probes passed. Actual fall/explosion/Xen/turret damage, death/respawn and the latest raw/cooked beef drops still need live acceptance; build success does not establish those gameplay results.
 
-Nearby Minecraft blocks now stop native HL NPCs through invisible engine solids; mining removes solids and placement recreates them. [NPC collision, live checks and streaming limits](docs/npc_blocks.md). Wall/dirt-edge jump trap also fixed and live-tested.
+Minecraft blocks stop native HL NPCs, sight traces and bullets through invisible engine solids. Server-world shapes stay active when the player moves away; mining/placement update them. Live scientist/soldier/zombie checks, native bullet damage,24-block separation and save/load passed. [NPC collision, live checks and capacity limits](docs/npc_blocks.md). Wall/dirt-edge jump trap also fixed and live-tested.
 
 ## Play from Half-Life
 
 Double-click `HalfCraft.bat` for normal gameplay. It starts the dedicated Minecraft instance and Half-Life's menu in fullscreen at the primary monitor's highest enumerated 32-bit display resolution, with developer mode and cheats disabled. Choose New Game or load a save; the bridge enables when Minecraft and the native player are ready. No console commands are needed. The launcher currently uses the development machine's Half-Life path in `tools/launch-play.ps1`.
 
-Build/deploy now includes both `dlls/hl.dll` and `cl_dlls/client.dll`. Launch dedicated games, then F10 console:
+Build/deploy includes both `dlls/hl.dll` and `cl_dlls/client.dll`. Physics auto-start, Minecraft input and background mode now default ON. Physics waits for a connected Minecraft world and an eligible native player, then resumes after save/load. F10 console commands remain available for manual control:
 
 ```text
 hc_physics 1
@@ -30,7 +30,7 @@ hc_input 1
 hc_background 1
 ```
 
-Close console. W/A/S/D, Space, Ctrl and mouse look retain native Half-Life movement. Left click attacks/mines with Minecraft items; right click uses them; 1–9/wheel selects the Minecraft hotbar. `I` opens inventory; `E` stays HL use outside containers. Native firing/reloading is suppressed while the bridge owns input. Inventory/container owns mouse/keyboard; Esc closes container. Console/menu/focus loss releases forwarded keys. Input/physics default OFF; save/load suspends physics, so enable it again after loading.
+Close console. W/A/S/D, Space, Ctrl and mouse look retain native Half-Life movement. Left click attacks/mines with Minecraft items; right click uses them; 1–9/wheel selects the Minecraft hotbar. `I` opens inventory; `E` stays HL use outside containers. Native firing/reloading is suppressed while the bridge owns input. Inventory/container owns mouse/keyboard; Esc closes container. Console/menu/focus loss releases forwarded keys. `hc_physics 0` also disables auto-start for the current session.
 
 Nearby baked models and animated block entities use real textures and native depth. Vanilla HUD/held item/screens appear over HL. Map-specific worlds keep blocks separate; campaign inventory/armor/offhand/ender inventory/recipes/XP/health/hunger follow map changes. Minecraft saves remain independent of HL save-slot rollback. Renewable resource mining uses vanilla tools and smelting with 5× mining progress; it does not cut holes in the native BSP.
 

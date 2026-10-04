@@ -13,6 +13,15 @@
 #include "interaction.cpp"
 #include "vitals.cpp"
 void HCPhysicsFrame() { HCStartFrame(); hc_vitals::frame(); hc_physics::frame(); hc_blocks::frame(); hc_interaction::frame(); }
+int HCPhysicsSpawn(edict_t* entity) {
+    int result=DispatchSpawn(entity);
+    if(entity && !entity->free && !std::strcmp(STRING(entity->v.classname),"worldspawn") && g_engfuncs.pfnCheckParm("-halfcraft-block-check",nullptr)) {
+        UTIL_PrecacheOther("monster_scientist");
+        UTIL_PrecacheOther("monster_human_grunt");
+        UTIL_PrecacheOther("monster_zombie");
+    }
+    return result;
+}
 void HCPhysicsCommand(edict_t* player) {
     if(!std::strcmp(CMD_ARGV(0),"hc_vitals_probe")) {
         auto* native=static_cast<CBasePlayer*>(CBaseEntity::Instance(player));
@@ -48,6 +57,11 @@ void HCPhysicsPost(edict_t* player) { PlayerPostThink(player); hc_blocks::Player
 void HCPhysicsSave(edict_t* entity,SAVERESTOREDATA* data) { hc_blocks::clear(); hc_physics::suspend("native save"); DispatchSave(entity,data); }
 int HCPhysicsRestore(edict_t* entity,SAVERESTOREDATA* data,int globalEntity) {
     hc_blocks::clear(); hc_physics::suspend("native restore");
+    if(entity && !entity->free && !std::strcmp(STRING(entity->v.classname),"worldspawn") && g_engfuncs.pfnCheckParm("-halfcraft-block-check",nullptr)) {
+        UTIL_PrecacheOther("monster_scientist");
+        UTIL_PrecacheOther("monster_human_grunt");
+        UTIL_PrecacheOther("monster_zombie");
+    }
     int result=DispatchRestore(entity,data,globalEntity);
     // Old development checkpoints stored godmode; never restore that immunity into survival.
     if(entity && !entity->free && (entity->v.flags&FL_CLIENT)) entity->v.flags&=~FL_GODMODE;
@@ -58,6 +72,7 @@ struct BridgeCallbacks {
     BridgeCallbacks() {
         gFunctionTable.pfnGameInit=HCGameDLLInit;
         gFunctionTable.pfnStartFrame=HCPhysicsFrame;
+        gFunctionTable.pfnSpawn=HCPhysicsSpawn;
         gFunctionTable.pfnServerActivate=HCServerActivate;
         gFunctionTable.pfnServerDeactivate=HCPhysicsDeactivate;
         gFunctionTable.pfnClientCommand=HCPhysicsCommand;

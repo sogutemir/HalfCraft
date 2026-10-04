@@ -138,10 +138,9 @@ void regression() {
 }
 }
 
-static cvar_t hc_autostart={"hc_autostart","0",0};
+static cvar_t hc_autostart={"hc_autostart","1",0};
 void HCGameDLLInit() {
     GameDLLInit(); CVAR_REGISTER(&hc_autostart);
-    if(g_engfuncs.pfnCheckParm && g_engfuncs.pfnCheckParm("-halfcraft-play",nullptr)) CVAR_SET_FLOAT("hc_autostart",1);
     hc::init();
 }
 void HCStartFrame() { StartFrame(); hc::frame(); }

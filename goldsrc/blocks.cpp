@@ -7,6 +7,13 @@ public:
     int ObjectCaps() override { return FCAP_DONT_SAVE; }
 };
 LINK_ENTITY_TO_CLASS(halfcraft_block,Block);
+class ProbeTarget : public CBaseEntity {
+public:
+    int hits=0;
+    void TraceAttack(entvars_t*,float damage,Vector,TraceResult*,int) override { if(damage>0) ++hits; }
+    int ObjectCaps() override { return FCAP_DONT_SAVE; }
+};
+LINK_ENTITY_TO_CLASS(halfcraft_block_probe_target,ProbeTarget);
 Shared* shared=nullptr;
 HANDLE mapping=nullptr;
 EHANDLE proxies[Capacity];
@@ -100,7 +107,10 @@ void frame() {
     while(count<guest.count) {
         auto entity=CBaseEntity::Create("halfcraft_block",g_vecZero,g_vecZero,nullptr);
         if(!entity) { clear(); publish(); return; }
-        entity->pev->solid=SOLID_BBOX; entity->pev->movetype=MOVETYPE_NONE; entity->pev->effects|=EF_NODRAW;
+        // PUSHSTEP keeps bbox solids in ignore_monsters traces (native sight/cover/ground checks).
+        // SLIDEBOX also lets native falling actors land on these solids.
+        entity->pev->solid=SOLID_SLIDEBOX; entity->pev->movetype=MOVETYPE_PUSHSTEP; entity->pev->effects|=EF_NODRAW;
+        entity->pev->flags|=FL_ONGROUND; entity->pev->gravity=0; entity->pev->velocity=g_vecZero;
         proxies[count++]=entity;
     }
     for(unsigned i=0;i<count;++i) {
@@ -108,7 +118,8 @@ void frame() {
         auto b=boxes[i];
         Vector minimum(b.min[0]*40,-b.max[2]*40,b.min[1]*40),maximum(b.max[0]*40,-b.min[2]*40,b.max[1]*40);
         auto e=proxies[i]->edict();
-        UTIL_SetSize(&e->v,g_vecZero,maximum-minimum); UTIL_SetOrigin(&e->v,minimum);
+        Vector center=(minimum+maximum)*.5f;
+        UTIL_SetSize(&e->v,minimum-center,maximum-center); UTIL_SetOrigin(&e->v,center);
     }
     generation=guest.generation; guestPid=guest.pid;
     std::memcpy(previous,boxes,count*sizeof(Box));
@@ -118,20 +129,20 @@ void frame() {
 // only during puppet hull validation; NPC engine movement still sees every proxy.
 struct PlayerTrace {
     PlayerTrace() { for(unsigned i=0;i<count;++i) if(proxies[i]) proxies[i]->pev->solid=SOLID_NOT; }
-    ~PlayerTrace() { for(unsigned i=0;i<count;++i) if(proxies[i]) proxies[i]->pev->solid=SOLID_BBOX; }
+    ~PlayerTrace() { for(unsigned i=0;i<count;++i) if(proxies[i]) proxies[i]->pev->solid=SOLID_SLIDEBOX; }
 };
 void check() {
     ALERT(at_console,"HC_BLOCKS proxies=%u generation=%u guest=%u enabled=%d\n",count,generation,guestPid,hc_physics::enabled);
     for(unsigned i=0;i<count;++i) if(proxies[i]) {
         auto e=proxies[i]->pev;
-        ALERT(at_console,"HC_BLOCK box=[%.3f %.3f %.3f %.3f %.3f %.3f]\n",e->origin.x/40,e->origin.z/40,-(e->origin.y+e->maxs.y)/40,
-            (e->origin.x+e->maxs.x)/40,(e->origin.z+e->maxs.z)/40,-e->origin.y/40);
+        Vector lo=e->origin+e->mins,hi=e->origin+e->maxs;
+        ALERT(at_console,"HC_BLOCK box=[%.3f %.3f %.3f %.3f %.3f %.3f]\n",lo.x/40,lo.z/40,-hi.y/40,hi.x/40,hi.z/40,-lo.y/40);
     }
     unsigned embedded=0;
     for(int index=1;index<gpGlobals->maxEntities;++index) {
         auto e=INDEXENT(index); if(!e || e->free || !(e->v.flags&FL_MONSTER) || e->v.solid!=SOLID_SLIDEBOX) continue;
         for(unsigned i=0;i<count;++i) if(proxies[i]) {
-            auto b=proxies[i]->pev; Vector lo=b->origin,hi=lo+b->maxs;
+            auto b=proxies[i]->pev; Vector lo=b->origin+b->mins,hi=b->origin+b->maxs;
             Vector min=e->v.origin+e->v.mins,max=e->v.origin+e->v.maxs;
             if(max.x>lo.x+.001f && min.x<hi.x-.001f && max.y>lo.y+.001f && min.y<hi.y-.001f && max.z>lo.z+.001f && min.z<hi.z-.001f) { ++embedded; break; }
         }
@@ -139,13 +150,20 @@ void check() {
     ALERT(at_console,"HC_BLOCKS embedded_npcs=%u\n",embedded);
 }
 void probe() {
-    // Exercise engine WALK_MOVE on a real SDK scientist, without touching existing NPCs/blocks.
-    auto npc=CBaseEntity::Create("monster_scientist",g_vecZero,g_vecZero,nullptr);
+    // Exercise engine WALK_MOVE on a real SDK actor, without touching existing NPCs/blocks.
+    const char* classname=CMD_ARGC()==2?CMD_ARGV(1):"monster_scientist";
+    if(std::strcmp(classname,"monster_scientist") && std::strcmp(classname,"monster_human_grunt") && std::strcmp(classname,"monster_zombie")) {
+        ALERT(at_console,"HC_BLOCKS_PROBE FAIL invalid actor\n"); return;
+    }
+    const char* model=!std::strcmp(classname,"monster_scientist")?"models/scientist.mdl":!std::strcmp(classname,"monster_zombie")?"models/zombie.mdl":"models/hgrunt.mdl";
+    if(!g_engfuncs.pfnModelIndex(model)) { ALERT(at_console,"HC_BLOCKS_PROBE FAIL actor not precached; start fresh map\n"); return; }
+    char actor[32]; std::strcpy(actor,classname);
+    auto npc=CBaseEntity::Create(actor,g_vecZero,g_vecZero,nullptr);
     if(!npc) { ALERT(at_console,"HC_BLOCKS_PROBE FAIL create\n"); return; }
     auto e=npc->edict(); bool tested=false,passed=false;
     for(unsigned i=0;i<count && !tested;++i) if(proxies[i]) {
         auto block=proxies[i]->edict();
-        Vector lo=block->v.origin,hi=lo+block->v.maxs;
+        Vector lo=block->v.origin+block->v.mins,hi=block->v.origin+block->v.maxs;
         if(hi.x-lo.x<39 || hi.y-lo.y<39 || hi.z-lo.z<39) continue;
         for(int axis=0;axis<2 && !tested;++axis) for(int side=-1;side<=1 && !tested;side+=2) {
             Vector start=(lo+hi)*.5f; start.z=lo.z+.03125f;
@@ -166,8 +184,32 @@ void probe() {
                 moved=(e->v.origin-start).Length();
             }
             if(moved<=60) continue;
-            tested=true; passed=stopped && moved>60;
-            ALERT(at_console,"HC_BLOCKS_PROBE %s proxy=%u stopped=%d blocked_distance=%.3f clear_distance=%.3f\n",passed?"PASS":"FAIL",i,stopped,(blocked-start).Length(),moved);
+            Vector source=start+Vector(0,0,20),destination=end+Vector(0,0,20);
+            TraceResult bullet{},sight{};
+            UTIL_TraceLine(source,destination,dont_ignore_monsters,e,&bullet);
+            UTIL_TraceLine(source,destination,ignore_monsters,ignore_glass,e,&sight);
+            bool bulletStopped=bullet.pHit==block && bullet.flFraction<1;
+            bool sightStopped=sight.pHit==block && sight.flFraction<1;
+            auto target=static_cast<ProbeTarget*>(CBaseEntity::Create("halfcraft_block_probe_target",destination,g_vecZero,nullptr));
+            bool damageStopped=false,damageClear=false;
+            if(target) {
+                target->pev->solid=SOLID_BBOX; target->pev->movetype=MOVETYPE_NONE;
+                UTIL_SetSize(target->pev,Vector(-4,-4,-4),Vector(4,4,4)); UTIL_SetOrigin(target->pev,destination);
+                Vector direction=(destination-source).Normalize();
+                npc->FireBullets(1,source,direction,g_vecZero,100,BULLET_MONSTER_MP5,0,20);
+                damageStopped=target->hits==0;
+                { PlayerTrace trace; npc->FireBullets(1,source,direction,g_vecZero,100,BULLET_MONSTER_MP5,0,20); }
+                damageClear=target->hits==1;
+                REMOVE_ENTITY(target->edict());
+            }
+            tested=true; passed=stopped && moved>60 && bulletStopped && sightStopped && damageStopped && damageClear;
+            ALERT(at_console,"HC_BLOCKS_PROBE %s stopped=%d clear=%.3f blocked=%.3f\n",
+                passed?"PASS":"FAIL",stopped,moved,(blocked-start).Length());
+            ALERT(at_console,"HC_BLOCK_ACTOR %s\n",actor);
+            ALERT(at_console,"HC_BLOCK_COVER %s\n",passed?"PASS":"FAIL");
+            ALERT(at_console,"HC_BLOCK_BULLET %d\n",bulletStopped);
+            ALERT(at_console,"HC_BLOCK_SIGHT %d\n",sightStopped);
+            ALERT(at_console,"HC_BLOCK_DAMAGE blocked=%d clear=%d\n",damageStopped,damageClear);
         }
     }
     REMOVE_ENTITY(e);

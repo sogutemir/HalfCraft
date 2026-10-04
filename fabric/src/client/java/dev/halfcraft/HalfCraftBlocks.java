@@ -10,9 +10,88 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
-/** Near-player vanilla collision boxes mirrored as GoldSrc solids for NPCs. */
+/** Server-world collision boxes mirrored as GoldSrc solids, independent of player position. */
 public final class HalfCraftBlocks implements AutoCloseable {
     private static final int CAPACITY=1024,BYTES=30848,ACTOR_CAPACITY=256;
+    private record Solids(net.minecraft.server.MinecraftServer server,java.util.List<AABB> boxes,boolean ready) {}
+    private static volatile Solids solids=new Solids(null,java.util.List.of(),false);
+    // Server-thread only. Retain chunk shapes after unload; unloaded walls still stop native NPCs.
+    private static net.minecraft.server.MinecraftServer owner;
+    private static final java.util.Map<net.minecraft.world.level.ChunkPos,java.util.List<AABB>> chunks=new java.util.HashMap<>();
+    private static final java.util.Set<net.minecraft.world.level.ChunkPos> dirty=new java.util.LinkedHashSet<>();
+    private static void reset(net.minecraft.server.MinecraftServer server) {
+        owner=server; chunks.clear(); dirty.clear(); solids=new Solids(server,java.util.List.of(),false);
+    }
+    public static void changed(net.minecraft.world.level.Level level,BlockPos pos) {
+        if(level instanceof net.minecraft.server.level.ServerLevel serverLevel && level==serverLevel.getServer().overworld()
+            && HalfCraftWorld.owned(serverLevel.getServer().getWorldData().getLevelName())) {
+            if(owner!=serverLevel.getServer()) reset(serverLevel.getServer());
+            dirty.add(net.minecraft.world.level.ChunkPos.containing(pos));
+        }
+    }
+    public static void init() {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register((level,chunk,newChunk) -> changed(level,chunk.getPos().getWorldPosition()));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            if(!HalfCraftWorld.owned(server.getWorldData().getLevelName())) return;
+            if(owner!=server) reset(server);
+            // Existing worlds may contain walls in chunks never visited during this session.
+            var region=server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).resolve("region");
+            if(java.nio.file.Files.isDirectory(region)) try(var files=java.nio.file.Files.newDirectoryStream(region,"r.*.*.mca")) {
+                for(var file:files) {
+                    var match=java.util.regex.Pattern.compile("r\\.(-?\\d+)\\.(-?\\d+)\\.mca").matcher(file.getFileName().toString());
+                    if(!match.matches()) continue;
+                    int rx=Integer.parseInt(match.group(1)),rz=Integer.parseInt(match.group(2));
+                    try(var channel=java.nio.channels.FileChannel.open(file,java.nio.file.StandardOpenOption.READ)) {
+                        var header=java.nio.ByteBuffer.allocate(4096);
+                        while(header.hasRemaining()) if(channel.read(header)<0) throw new java.io.EOFException("Truncated region header: "+file);
+                        header.flip();
+                        for(int i=0;i<1024;i++) if(header.getInt()!=0) {
+                            long x=(long)rx*32+i%32,z=(long)rz*32+i/32;
+                            if(x>=-128 && x<128 && z>=-128 && z<128) dirty.add(new net.minecraft.world.level.ChunkPos((int)x,(int)z));
+                        }
+                    }
+                }
+            } catch(Exception error) { HalfCraftGuest.LOG.error("HalfCraft saved block collision scan failed",error); return; }
+            solids=new Solids(server,java.util.List.of(),dirty.isEmpty());
+        });
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if(owner!=server || !HalfCraftWorld.owned(server.getWorldData().getLevelName()) || server.overworld()==null) return;
+            try {
+                // ponytail: one saved chunk per tick, 1024 merged boxes; raise protocol/entity budget for larger builds.
+                if(!dirty.isEmpty()) {
+                    var pos=dirty.iterator().next();
+                    var level=server.overworld(); var chunk=level.getChunk(pos.x(),pos.z());
+                    var boxes=new ArrayList<AABB>();
+                    chunk.findBlocks(state -> !state.isAir(),(block,state) -> {
+                        for(var box:state.getCollisionShape(level,block,CollisionContext.empty()).toAabbs()) boxes.add(box.move(block));
+                    });
+                    if(boxes.isEmpty()) chunks.remove(pos); else chunks.put(pos,boxes);
+                    var all=new ArrayList<AABB>(); for(var cached:chunks.values()) all.addAll(cached);
+                    // Merge touching boxes only when other dimensions match exactly; preserve slabs/stairs/holes.
+                    for(int axis=0;axis<3;axis++) {
+                        final int a=axis;
+                        all.sort(java.util.Comparator.comparingDouble((AABB b) -> min(b,(a+1)%3)).thenComparingDouble(b -> max(b,(a+1)%3))
+                            .thenComparingDouble(b -> min(b,(a+2)%3)).thenComparingDouble(b -> max(b,(a+2)%3)).thenComparingDouble(b -> min(b,a)));
+                        var merged=new ArrayList<AABB>();
+                        for(var box:all) {
+                            var last=merged.isEmpty()?null:merged.getLast();
+                            if(last!=null && max(last,a)==min(box,a) && max(box,a)-min(last,a)<=16
+                                && min(last,(a+1)%3)==min(box,(a+1)%3) && max(last,(a+1)%3)==max(box,(a+1)%3)
+                                && min(last,(a+2)%3)==min(box,(a+2)%3) && max(last,(a+2)%3)==max(box,(a+2)%3)) merged.set(merged.size()-1,last.minmax(box));
+                            else merged.add(box);
+                        }
+                        all=merged;
+                    }
+                    if(all.size()>CAPACITY) throw new IllegalStateException("HalfCraft block collision capacity exceeded: "+all.size());
+                    dirty.remove(pos);
+                    solids=new Solids(server,java.util.List.copyOf(all),solids.ready() || dirty.isEmpty());
+                }
+            } catch(Throwable error) { HalfCraftGuest.LOG.error("HalfCraft server block collision export failed",error); }
+        });
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> { if(owner==server) reset(null); });
+    }
+    private static double min(AABB b,int axis) { return axis==0?b.minX:axis==1?b.minY:b.minZ; }
+    private static double max(AABB b,int axis) { return axis==0?b.maxX:axis==1?b.maxY:b.maxZ; }
     private record Actors(java.util.List<AABB> boxes,int time,boolean ready) {}
     private static volatile Actors actors=new Actors(java.util.List.of(),0,false);
     public static boolean canPlace(net.minecraft.world.level.Level level,net.minecraft.core.BlockPos pos,net.minecraft.world.level.block.state.BlockState state) {
@@ -65,24 +144,12 @@ public final class HalfCraftBlocks implements AutoCloseable {
                 if(values[3]<=values[0] || values[4]<=values[1] || values[5]<=values[2]) throw new IllegalStateException("HalfCraft actor box invalid");
                 actorBoxes.add(new AABB(values[0],values[1],values[2],values[3],values[4],values[5]));
             }
-            boolean live=enabled!=0 && link.matchesHost(pid,session) && HalfCraftPhysics.active() && mc.player!=null && mc.level!=null;
+            var snapshot=solids;
+            boolean live=enabled!=0 && link.matchesHost(pid,session) && HalfCraftPhysics.active() && mc.player!=null && mc.level!=null
+                && snapshot.server()==mc.getSingleplayerServer() && snapshot.ready();
             actors=new Actors(java.util.List.copyOf(actorBoxes),heartbeat,live && ready!=0);
             int seq=get(64); if((seq&1)!=0 || (seq!=ack && Integer.toUnsignedLong(HalfCraftLink.tick()-get(80))<2000)) return;
-            var boxes=new ArrayList<AABB>();
-            if(live) {
-                var center=mc.player.blockPosition();
-                // ponytail: 9x7x9 blocks and1024 boxes; chunk collision stream replaces this for distant NPCs.
-                for(var pos:BlockPos.betweenClosed(center.offset(-4,-2,-4),center.offset(4,4,4))) {
-                    if(!mc.level.hasChunkAt(pos)) continue;
-                    var state=mc.level.getBlockState(pos);
-                    if(state.isAir()) continue;
-                    for(var box:state.getCollisionShape(mc.level,pos,CollisionContext.empty()).toAabbs()) {
-                        var world=box.move(pos.getX(),pos.getY(),pos.getZ());
-                        if(boxes.size()==CAPACITY) throw new IllegalStateException("HalfCraft block collision capacity exceeded");
-                        boxes.add(world);
-                    }
-                }
-            }
+            var boxes=live?snapshot.boxes():java.util.List.<AABB>of();
             put(64,seq+1); put(68,(int)ProcessHandle.current().pid()); put(72,session); put(76,epoch);
             put(80,HalfCraftLink.tick()); put(84,boxes.size()); put(88,++generation); put(92,live?1:0);
             for(int i=0;i<boxes.size();++i) {

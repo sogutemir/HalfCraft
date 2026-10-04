@@ -43,6 +43,7 @@ public final class HalfCraftGuest implements ClientModInitializer {
         HalfCraftInventory.init();
         HalfCraftInteraction.init();
         HalfCraftVitals.init();
+        HalfCraftBlocks.init();
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register((level,chunk,newChunk) -> {
             if(!HalfCraftWorld.owned(level.getServer().getWorldData().getLevelName())) return;
             // Old flat bridge saves generated an unreachable bedrock floor at -64.

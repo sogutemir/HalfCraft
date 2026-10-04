@@ -34,7 +34,7 @@ public static class HalfCraftDisplay {
 }
 '@
 $mode=[HalfCraftDisplay]::Maximum()
-$arguments="-game halfcraft_bridge -gl -full -w $($mode.width) -h $($mode.height) -freq $($mode.frequency) -halfcraft-play +developer 0 +sv_cheats 0"
+$arguments="-game halfcraft_bridge -gl -full -w $($mode.width) -h $($mode.height) -freq $($mode.frequency) +developer 0 +sv_cheats 0"
 if($Check) { "HalfCraft launch check PASS: $arguments"; return }
 foreach($path in @("$game\hl.exe","$game\halfcraft_bridge\dlls\hl.dll","$game\halfcraft_bridge\cl_dlls\client.dll")) {
     if(!(Test-Path -LiteralPath $path)) { throw "Missing runtime: $path" }
