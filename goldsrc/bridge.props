@@ -1,0 +1,13 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Remove="..\..\dlls\cbase.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)cbase_bridge.cpp" />
+    <ClCompile Remove="..\..\dlls\player.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)player_bridge.cpp" />
+    <ClCompile Remove="..\..\dlls\items.cpp;..\..\dlls\h_battery.cpp;..\..\dlls\monsters.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)items_bridge.cpp;$(MSBuildThisFileDirectory)battery_bridge.cpp;$(MSBuildThisFileDirectory)monsters_bridge.cpp" />
+  </ItemGroup>
+  <ItemDefinitionGroup>
+    <ClCompile><LanguageStandard>stdcpp17</LanguageStandard><AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)sdk\dlls;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
+  </ItemDefinitionGroup>
+</Project>

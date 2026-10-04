@@ -1,0 +1,7 @@
+game "HalfCraft Bridge"
+startmap "c1a0"
+trainmap "t0a0"
+gamedll "dlls\hl.dll"
+fallback_dir "valve"
+type "singleplayer_only"
+cldll "1"

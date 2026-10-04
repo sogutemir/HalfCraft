@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "halfcraft_bridge",
+  "version": "${version}",
+  "name": "HalfCraft Bridge",
+  "description": "Half-Life bridge with opt-in bounded BSP physics experiment; derived from SkyCraft.",
+  "authors": ["HalfCraft contributors", "chasmlol (SkyCraft architecture)"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.halfcraft.HalfCraftGuest"] },
+  "mixins": ["halfcraft.mixins.json", "halfcraft.render.mixins.json"],
+  "depends": { "fabricloader": ">=0.19.5", "minecraft": "~26.3", "java": ">=25", "fabric-api": "*" }
+}

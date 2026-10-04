@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "dev.halfcraft.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["HalfCraftCollisionMixin", "HalfCraftNativeEnvironmentMixin", "HalfCraftNativePacketMixin", "HalfCraftNativeMovementMixin", "HalfCraftMiningSpeedMixin", "HalfCraftArrowMixin", "HalfCraftPlacementMixin", "HalfCraftWorldOpenMixin", "HalfCraftStopMixin", "HalfCraftInputConstantsMixin", "HalfCraftModifiersMixin", "HalfCraftKeyboardMixin", "HalfCraftMouseMixin", "HalfCraftMouseAccessor", "HalfCraftFrameMixin", "HalfCraftLevelRendererMixin", "HalfCraftLoadingMixin", "HalfCraftPickMixin", "HalfCraftFramerateMixin", "HalfCraftSectionMixin"],
+  "injectors": {"defaultRequire": 1}
+}

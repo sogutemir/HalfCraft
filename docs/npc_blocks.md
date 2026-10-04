@@ -1,0 +1,13 @@
+# Minecraft blocks and native NPCs
+
+`HalfCraftBlocks` exports vanilla `BlockState.getCollisionShape(...).toAabbs()` into `Local\HalfCraft_blocks_v2`. GoldSrc mirrors each box using an invisible `halfcraft_block` entity (`SOLID_BBOX`, `MOVETYPE_NONE`, `EF_NODRAW`). Native NPC `WALK_MOVE`, local route checks and traces see these solids. Shapes update after placement/mining; identical snapshots do not relink entities.
+
+Protocol v2: magic `0x42435248`,30848bytes. Host64bytes at0: seq0,magic4,version8,bytes12,pid16,session20,heartbeat24,enabled28,epoch32,ack36,proxies40,actors44,actorsReady48. Guest64bytes at64: seq0,pid4,session8,epoch12,heartbeat16,count20,generation24,ready28. Guest payload at128:1024boxes×24bytes. Host actor payload at24704:256boxes×24bytes. MC-world min/max float[3]. Seqlock and acknowledgement keep block payload immutable until consumed; actor payload copied and seqlock checked before decoding. PID/session/epoch and finite ordered coordinates validated; zero-size native hulls skipped.
+
+MC remains authority for player/block collision. Server temporarily excludes mirrored solids during puppet hull checks only, avoiding the wider HL player hull rejecting valid MC block movement. Native NPCs are never moved to accommodate block placement. Vanilla `BlockItem.canPlace` additionally rejects collision-shape overlap with native actor boxes, on client and integrated server. Missing/not-ready/>500ms actor data fails closed. OFF, stale guest, map change and native save/restore clear proxies. Proxies are not saved; vanilla world data recreates them.
+
+Scope:9×7×9 blocks around player,1024boxes,64free native entity reserve. NPCs outside streamed area do not have block collision until player approaches. CollisionContext.empty uses static block shapes; fluids have no solids. Complex resource/modded shapes, fully enclosed NPCs without nearby clear exit, scripted teleports and full campaign pathfinding remain acceptance ceilings. Entity-budget exhaustion logs `HC_BLOCKS entity budget exceeded`; no full-map navmesh rebuild.
+
+Live check: `python tools/verify_npc_blocks.py` requires standing atop existing dirt trap with dirt in slot2. Native `hc_blocks_probe` creates one temporary SDK scientist, checks engine WALK_MOVE with/without actual proxies, then removes test scientist. PASS: stopped with solids,80HL units without; mining proxy count14→13, placement13→14; `hc_blocks_check` reports embedded NPCs0. Test replaces mined block.
+
+Same run verifies `hc_physics 0` removes all14proxies; ON recreates14 with new epoch. Native save/load used repeatedly with proxies active; captured trap/world remained intact.

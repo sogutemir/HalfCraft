@@ -18,3 +18,16 @@ CMakeUserPresets.json
 fabric/run-guest*/
 __pycache__/
 *.pyc
+local/
+goldsrc/build/
+goldsrc/sdk/projects/**/Release/
+goldsrc/sdk/projects/**/Debug/
+goldsrc/sdk/game/
+*.obj
+*.pdb
+*.ilk
+*.log
+*.exe
+*.dll
+**/accounts.json
+**/launcher_accounts.json

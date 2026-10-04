@@ -58,11 +58,29 @@ test {
 }
 
 processResources {
+	if (project.hasProperty('halfcraft')) {
+		exclude 'fabric.mod.json'
+	}
 	def version = project.version
 	inputs.property "version", version
 
 	filesMatching("fabric.mod.json") {
 		expand "version": version
+	}
+}
+
+// ponytail: handshake profile retains upstream compiled sources but activates no Skyrim mixins;
+// add guest gameplay consumers only after independent position/heartbeat acceptance.
+if (project.hasProperty('halfcraft')) {
+	tasks.register('halfcraftResources', Copy) {
+		from('src/halfcraft/resources')
+		into(layout.buildDirectory.dir('halfcraft-resources'))
+		expand version: project.version
+	}
+	jar {
+		dependsOn 'halfcraftResources'
+		archiveBaseName = 'halfcraft-bridge'
+		from(layout.buildDirectory.dir('halfcraft-resources'))
 	}
 }
 

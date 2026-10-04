@@ -1,0 +1,52 @@
+HALFCRAFT BRIDGE — BOUNDED BSP PHYSICS EXPERIMENT
+Date 2026-10-04; result PASS for bounded opt-in experiment, not full campaign physics.
+Spawn follow-up: guest5464/host3356, verify_spawn.py PASS50samples/5s. Feet[4.9782867431640625,-6,-7.426913452148438], all onGround, height range<0.01block. OFF restored[23.67631383998036,-63,-10.392901254495133] exactly. Native Gizmos floor/walls visually verified local/spawn-fix.png. Flight disabled during active physics; restored on OFF. Server teleport completion required before guest active acknowledgement.
+Final active run: host PID3356, guest PID5052, session43346331, c1a0.
+Independent mapping Local\HalfCraft_collision_v1, magic0x43435248, version1, bytes4288.
+Host128, masks4096 at128, guest64 at4224. Stable handshake384 bytes unchanged.
+8x8x8 blocks, 4x4x4 samples/block, 10HL units/sample. World point contents and brush TraceModel used.
+Initial region base[8,-8,-12], nonempty cells397, occupied samples22746.
+HL standing origin[484,318,-203.96875], MC feet[12.1,-6,-7.95], yaw-270/pitch0.
+
+tools\verify_physics.py --seconds 65 PASS on final binaries:
+Native Minecraft walking displacement2.154844128044159 blocks.
+Sampled jump rise1.1767592750642368 blocks; other runs captured1.2522033402537236.
+Landed at same BSP floor y=-6, onGround=true.
+Settled puppet coordinate error<0.1HL unit assertion passed.
+65s additional active hold, 378 total samples, all host enabled/guest active, no fallback during hold.
+OFF restored prior MC test-world position[25.101352492330395,-63,1.5].
+Raw evidence local\physics-results.json.
+
+tools\verify_physics_fallback.py PASS after snapshot-cache fix:
+Active native save released physics, serialized normal movement state.
+Active c1a0 -> c1a1 map transition released; guest world stayed alive.
+Wall approach rejected by GoldSrc hull, HC_PHYSICS OFF reason=GoldSrc hull rejected movement.
+Host stopped at origin[766.7728881835938,318,-203.96875], never accepted colliding target.
+Guest exit while active: physics inactive; host alive/HOST_READY. Dedicated prior MC position restored before normal shutdown.
+Guest restart PID31024, normal physics-world y=-63 restored, no fall death.
+Host quit while active: guest alive/GUEST_READY and restored y=-63; host restart PID3356 reconnected, physics defaults OFF.
+Raw evidence local\physics-fallback-results.json.
+Final guest recompiled PID5052 with same-host/session and dedicated-world checks; final65s run above passed.
+
+tools\verify_campaign.py PASS after physics integration:
+c1a0 NPC17/script61/door16; activity16NPC changes,6door changes,5scripted NPC changes.
+Native save/load passed; restored activity16NPC changes,8scripted NPC changes.
+c1a0 -> c1a1 -> c1a0 passed; Minecraft log explicitly contained c1a1 state.
+No Host_Error in measured slice. This checks native behavior with physics OFF; full campaign with puppet always ON not claimed.
+
+Build PASS GoldSrc v143 Win32, Fabric,21 upstream JUnit tests, stable C++/Java protocol layout.
+Collision layout C++static_assert, Java MemoryLayout and Python assert checks passed.
+Signed negative-coordinate arithmetic regression check included; original unsigned addition bug fixed before PASS runs.
+Full brush AABB occupancy discarded; actual point hull traces used.
+Seqlock transient read originally falsely disconnected long hold; last valid guest snapshot used until2000ms stale,65s rerun passed.
+Native callback wrappers remain, save/restore native-mode release, explicit trigger Touch pass added.
+Dedicated physics world backups automatically made on reopen; original HalfCraftBridge Survival world retained.
+Legacy C:\HalfCraftDev/runtime and normal Minecraft launcher untouched by phase.
+
+Use HL console hc_physics 1 / hc_physics 0; movement/look/jump via visible Minecraft window.
+Mapping diagnostic python C:\HalfCraftBridge\tools\physics_status.py
+No Minecraft gameplay systems reimplemented; vanilla VoxelShape collision queries feed vanilla player physics on client/integrated server.
+No shared renderer, no Half-Life-window input forwarding yet.
+Known: sampled slopes/thin geometry, MC vs HL width mismatch triggers fallback, no complete crouch/platform/train/liquid support.
+Full scripted campaign while puppet active unverified; exact native trigger semantics/elevators next validation target.
+Next: exact BSP/static hull surfaces, explicit hull sizing agreement, moving brush transforms, seamless wall/step/slope/elevator/trigger tests.

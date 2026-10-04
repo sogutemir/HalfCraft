@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "dev.skycraft.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["SpriteContentsAccessor", "TextureAtlasAccessor", "ClientLevelAccessor", "RenderTypeAccessor", "RenderSetupAccessor", "TextureBindingAccessor", "TextureManagerAccessor"],
+  "injectors": {"defaultRequire": 1}
+}

@@ -1,0 +1,101 @@
+HALFCRAFT BRIDGE — MEASURED FIRST MILESTONE
+Date: 2026-10-04, Windows local development
+Result: PASS — real observation-only two-way bridge. Advanced gameplay integration not implemented.
+
+SOURCE / PRESERVATION
+Canonical upstream: https://github.com/chasmlol/SkyCraft
+upstream fetch/push: https://github.com/chasmlol/SkyCraft
+origin/fork: absent; gh unavailable, local migration permitted by request.
+Migration base: bfcaf178524b92c2cdeb88e4ce0f13ef9ded6f32
+Valve SDK: b1b5cf5892918535619b2937bb927e46cb097ba1
+LICENSE and THIRD-PARTY-NOTICES.md: git diff --exit-code passed, upstream notices retained.
+Legacy root HEAD/tag: da09b4ed5f98c5b9b94a8b1368a3596490d0b51c
+Legacy root final dirty state: deploy.py +1; generate_assets.py +15, same baseline.
+Legacy nested SDK HEAD: bc04a57be8487147d72e8ec3765c7e0567298a99; 19 modified + 2 untracked, same baseline.
+Legacy runtime and normal launcher directories remain present. Migration deploy/setup write only isolated bridge directories.
+No claim of new legacy campaign rerun; existing baseline evidence retained. New campaign measurements below are bridge runtime.
+New SDK has 16 legacy .dsp files with line-ending-only differences; git diff --ignore-space-at-eol --stat empty. No SDK gameplay edits.
+Git asset scan: only upstream Gradle wrapper JAR tracked among .jar/.dll/.exe/.bsp/.wad/account JSON patterns.
+git check-ignore confirmed account file, Minecraft world, host DLL and Fabric jar excluded.
+
+BUILD
+powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\build.ps1
+PASS: GoldSrc Win32 v143 build; Fabric clean build; 21 upstream JUnit tests.
+C++ layout PASS bytes=384 host=64 guest=256 origin=96 velocity=56
+Java layout PASS bytes=384 host=64 guest=256
+Python protocol PASS: layout/create/open/bounds/magic/version/PIDs/expiry/seqlock/guest reconnect/clean shutdown.
+Coordinate PASS: 1000 round trips (<1e-9 GoldSrc units), cardinal yaw checks (<1e-12).
+Host-only: powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\build.ps1 -HostOnly
+Fabric-only: powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\build.ps1 -FabricOnly
+Deploy: powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\deploy.ps1
+Launch: powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\launch-dev.ps1
+Deploy target: K:\SteamLibrary\steamapps\common\Half-Life\halfcraft_bridge
+Vanilla and legacy DLL/assets not deploy targets; Valve assets inherited through fallback_dir.
+Authenticated dedicated Prism 11.1.1, Minecraft 26.3, Fabric loader 0.19.5, Fabric API 0.161.0+26.3, Java 25.
+
+PROTOCOL
+Mapping Local\HalfCraft_v1; magic 0x46435248; version 1; total 384 bytes.
+Little-endian fixed-width fields, pack/alignment 8, aligned 32-bit seqlocks.
+Header 0/64 bytes; host 64/192; guest 256/128.
+Host relative map32 origin96 angles120; guest position32 velocity56.
+Independent 100ms heartbeat threads, 8000ms timeout, GetTickCount modulo 2^32, PID/session and owner mutexes.
+
+REAL HEARTBEAT
+tools\verify_live.py --seconds 65: PASS on final compiled binaries.
+Evidence local\heartbeat-final-65s.json: 66 samples over 65.031 seconds.
+Host PID 14764, guest PID 30100, session 38334492.
+Both states CONNECTED=3 throughout; max host heartbeat age 110ms; max guest age 110ms.
+Host map c1a0; playerPresent=true. Minecraft worldLoaded=true, onGround=true.
+HL origin [484.0,318.0,-203.96875], view angles [0.0,180.0,0.0].
+MC position [41.68669677357335,69.0,-29.449486788935396].
+MC velocity [0.0,-0.0784000015258789,0.0].
+Previous real run: host3928/guest27332, 65.031s/66 samples, max ages110ms each.
+HALFCRAFT GUEST CONNECTED and HalfCraft host connected recorded in actual game logs.
+
+OBSERVATION / MAPS
+Minecraft diagnostics logged HC host map=c1a0 with native HL origin/view angles and native MC position/velocity/world/onGround.
+Half-Life diagnostics logged HC host=(...) map=c1a0 guest=(...) velocity=(...) world=1 onGround=1.
+Native movement observed: HL [-479.2523193359375,810.7376708984375,-203.96875] changed to [-114.57665252685547,805.6322021484375,-203.96875].
+Native MC movement observed: [41.5,69.0,-38.5] changed to [41.5,69.0,-29.869392662372206].
+Final reconnect movement: HL [484,318,-203.96875] changed to [276.0457458496094,318,-203.96875].
+Neither adapter sets peer player position. No live coordinate takeover applied.
+Map round trip c1a0 -> c1a1 -> c1a0 measured by tools\verify_campaign.py while guest stayed connected/world loaded.
+c1a1 snapshot HL [984.0,654.0,-107.96875]; returned c1a0 [484.0,318.0,-203.96875].
+Campaign rerun on final host10796/guest9108 PASS with same activity counts; explicit assertion checked actual Minecraft log contains HC host map=c1a1 player=true.
+
+DISCONNECT / RECONNECT
+tools\verify_reconnect.py PASS; evidence local\reconnect-results.json.
+Initial host14764/guest14232, session38334492.
+Normal guest exit: guest SHUTDOWN=5; host remained alive/HOST_READY=1. Lost detected 0.094s after window-close helper returned.
+Guest restart: PID9108, same host/session, CONNECTED/world loaded after 12.953s following launch command.
+Normal host quit: host SHUTDOWN=5; guest PID9108 remained alive/GUEST_READY=2, world loaded.
+Host loss already detected when quit helper returned (measured additional wait 0.0s, not literal zero total latency).
+Host restart: PID10796, session38808506, guest9108 reconnected in 1.938s following launch command.
+Connection age reset to 782ms, host/guest matching new session.
+Actual logs contain HALFCRAFT GUEST LOST and HalfCraft host lost.
+Both peers survived other peer normal exit; no crash observed.
+Initial acceptance automation found Prism relaunch can be ignored while prior Java process is still exiting; check now waits for process exit before relaunch, successful rerun above.
+
+c1a0 CAMPAIGN / SAVE
+tools\verify_campaign.py PASS, evidence local\campaign-results.json and local\campaign-console.txt.
+Baseline: NPCs17 scripts61 doors16.
+Six-second activity: npc_changes16 door_changes6 scripted_npc_changes5.
+Native save hc_bridge_acceptance.sav written; load succeeded.
+After restore six-second activity: NPCs17 scripts60 doors16, npc_changes16 scripted_npc_changes8.
+Saved/restored origin [484.0,318.0,-203.96875], angles [0,180,0].
+c1a1 and return to c1a0 successful; connected guest and native world persisted.
+No Host_Error in measured campaign console slice. This is bounded c1a0 regression, not full campaign playthrough.
+
+MODULES
+Reused: SkyCraft Fabric/Gradle/Loom toolchain, FFM named mapping/seqlock concepts, MirrorWorld lifecycle approach.
+Modified: fabric/build.gradle separate -Phalfcraft resources; HalfCraft-only descriptor, entrypoint, link and normal dedicated world.
+Isolated: skse/ Skyrim host, original protocol, original Fabric SkyCraft entrypoints/mixins; all retained as reference.
+Added GoldSrc: host.cpp, cbase_bridge.cpp, bridge.props, layout_check.cpp, runtime/liblist.gam, runtime/autoexec.cfg, SDK submodule/provenance.
+Original SDK callbacks retained; observer wrappers, no legacy directory runtime dependency.
+
+LIMITS / NEXT
+Observation-only. No BSP collision, shared renderer/HUD, gameplay synchronization, block mesh transfer, combat proxies or multiplayer.
+Normal Survival continues backgrounded; death/respawn observed. worldLoaded does not imply living player.
+Independent saves; no synchronized rollback. Paused GoldSrc frame can delay state diagnostics, heartbeat remains threaded.
+One pair per Windows login. Coordinate scale40; hull-center/feet anchor correction deferred.
+Stop after this milestone. Next: bounded Half-Life BSP collision -> Minecraft collision shapes -> real MC physics -> controlled Half-Life player puppet, preserving native trigger/script handoff.

@@ -26,6 +26,7 @@ public final class FrameExporter {
 
 	private static final Staging[] staging = new Staging[STAGING];
 	private static long nextFrameId = 1;
+	private static long shippedFrameId;
 	private static boolean loggedFormat;
 
 	private static final class Staging {
@@ -40,7 +41,20 @@ public final class FrameExporter {
 	}
 
 	public static void capture(Minecraft minecraft) {
-		shipReadyFrames();
+		capture(minecraft, (pixels, width, height, frameId) -> {
+			MemorySegment shm = SkyLink.segment();
+			if (shm != null) {
+				MemorySegment.copy(pixels, 0, shm, SkyLink.overlayBackSlotOffset(), pixels.byteSize());
+				SkyLink.publishOverlay(width, height, true, frameId);
+			}
+		});
+	}
+
+	@FunctionalInterface
+	public interface Sink { void publish(MemorySegment pixels, int width, int height, long frameId); }
+
+	public static void capture(Minecraft minecraft, Sink sink) {
+		shipReadyFrames(sink);
 
 		RenderTarget target = minecraft.gameRenderer.mainRenderTarget();
 		GpuTexture color = target.getColorTexture();
@@ -92,9 +106,10 @@ public final class FrameExporter {
 	}
 
 	/** Maps the newest finished readback and copies it into shared memory. */
-	private static void shipReadyFrames() {
+	private static void shipReadyFrames(Sink sink) {
 		Staging newest = null;
 		for (Staging s : staging) {
+			if (s != null && s.state == READY && s.frameId <= shippedFrameId) s.state = FREE;
 			if (s != null && s.state == READY && (newest == null || s.frameId > newest.frameId)) {
 				newest = s;
 			}
@@ -102,15 +117,12 @@ public final class FrameExporter {
 		if (newest == null) {
 			return;
 		}
-		MemorySegment shm = SkyLink.segment();
-		if (shm != null) {
-			long bytes = (long) newest.width * newest.height * 4L;
-			try (GpuBufferSlice.MappedView view = newest.buffer.map(true, false)) {
-				MemorySegment src = MemorySegment.ofBuffer(view.data());
-				MemorySegment.copy(src, 0, shm, SkyLink.overlayBackSlotOffset(), Math.min(bytes, src.byteSize()));
-			}
-			SkyLink.publishOverlay(newest.width, newest.height, true, newest.frameId);
+		long bytes = (long) newest.width * newest.height * 4L;
+		try (GpuBufferSlice.MappedView view = newest.buffer.map(true, false)) {
+			MemorySegment src = MemorySegment.ofBuffer(view.data());
+			if (src.byteSize() >= bytes) sink.publish(src.asSlice(0, bytes), newest.width, newest.height, newest.frameId);
 		}
+		shippedFrameId = newest.frameId;
 		// Anything older than what we just shipped is useless now.
 		for (Staging s : staging) {
 			if (s != null && s.state == READY && s.frameId <= newest.frameId) {

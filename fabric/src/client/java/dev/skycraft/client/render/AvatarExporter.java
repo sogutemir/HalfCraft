@@ -78,7 +78,7 @@ import org.jspecify.annotations.Nullable;
  * move, ...) and all particles) relative to a block near the camera. Arrows,
  * dropped items and thrown items have their own lighter path (WorldExporter). Render thread only.
  */
-final class AvatarExporter implements SubmitNodeCollector {
+public final class AvatarExporter implements SubmitNodeCollector {
 	// Vertex flags: cutout, full-detail texture, lit by its own faces / without a normal / blended.
 	private static final int SOLID = 1 | 8 | (7 << 4);
 	private static final int PARTICLE = 1 | 8;
@@ -102,6 +102,16 @@ final class AvatarExporter implements SubmitNodeCollector {
 	private static final AvatarExporter AVATAR = new AvatarExporter();
 	private static final AvatarExporter SCENE = new AvatarExporter();
 	private static final AvatarExporter RAGDOLL = new AvatarExporter();
+	private static final AvatarExporter HALFCRAFT = new AvatarExporter();
+	@FunctionalInterface
+	public interface Sink { boolean send(int message, ByteBuffer header, ByteBuffer body); }
+	private Sink sink;
+	public static void halfcraftReset() { reset(); }
+	public static void halfcraftBlockEntities(Minecraft minecraft, SkyAtlas atlas, float partialTick, Sink sink) {
+		var capture = HALFCRAFT;
+		capture.sink = sink;
+		capture.exportScene(minecraft, atlas, partialTick);
+	}
 	private static long nextRagdollNanos;
 
 	private final Map<Long, Batch> batches = new HashMap<>();
@@ -399,6 +409,7 @@ final class AvatarExporter implements SubmitNodeCollector {
 			this.sendEmpty(message, origin != null);
 			return;
 		}
+		if (this.sink != null && ((long) vertices * Proto.REN_VERTEX_BYTES + used.size() * 16L + 32 > 4 * 1024 * 1024 || used.size() > 256)) return;
 		ByteBuffer header = ByteBuffer.allocate((origin != null ? 24 : 0) + 8 + used.size() * 16).order(ByteOrder.LITTLE_ENDIAN);
 		if (origin != null) {
 			header.putDouble(origin[0]).putDouble(origin[1]).putDouble(origin[2]);
@@ -414,7 +425,7 @@ final class AvatarExporter implements SubmitNodeCollector {
 		}
 		header.flip();
 		body.flip();
-		if (SkyLink.tryWriteRender(message, header, body)) {
+		if (this.sink != null ? this.sink.send(message, header, body) : SkyLink.tryWriteRender(message, header, body)) {
 			this.shown = true;
 		}
 	}
@@ -428,7 +439,7 @@ final class AvatarExporter implements SubmitNodeCollector {
 			header.putDouble(0).putDouble(0).putDouble(0);
 		}
 		header.putInt(0).putInt(0).flip();
-		this.shown = !SkyLink.writeRender(message, header, null);
+		this.shown = !(this.sink != null ? this.sink.send(message, header, null) : SkyLink.writeRender(message, header, null));
 	}
 
 	// ---- batches ---------------------------------------------------------------------------------
@@ -459,6 +470,7 @@ final class AvatarExporter implements SubmitNodeCollector {
 		}
 
 		void add(float x, float y, float z, float u, float v, int argb, int light, int overlay) {
+			if (AvatarExporter.this.sink != null && this.count >= 32768) return;
 			if ((this.count + 1) * 8 > this.data.length) {
 				this.data = java.util.Arrays.copyOf(this.data, this.data.length * 2);
 			}
@@ -610,7 +622,7 @@ final class AvatarExporter implements SubmitNodeCollector {
 		return id < 0 ? null : this.batch(id, UV_RAW, SOLID);
 	}
 
-	private static int textureId(Identifier texture) {
+	private int textureId(Identifier texture) {
 		Integer known = TEXTURE_IDS.get(texture);
 		if (known != null) {
 			return known;
@@ -627,6 +639,9 @@ final class AvatarExporter implements SubmitNodeCollector {
 		int id = nextTextureId++;
 		try (image) {
 			int w = image.getWidth(), h = image.getHeight();
+			if (this.sink != null && (w <= 0 || h <= 0 || (long) w * h * 4 + 16 > 4 * 1024 * 1024 || id > 256)) {
+				nextTextureId--; UNUSABLE.add(texture); return -1;
+			}
 			ByteBuffer pixels = ByteBuffer.allocateDirect(w * h * 4).order(ByteOrder.LITTLE_ENDIAN);
 			for (int y = 0; y < h; y++) {
 				for (int x = 0; x < w; x++) {
@@ -636,7 +651,7 @@ final class AvatarExporter implements SubmitNodeCollector {
 			}
 			pixels.flip();
 			ByteBuffer header = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN).putInt(id).putInt(w).putInt(h).putInt(0).flip();
-			if (!SkyLink.writeRender(Proto.REN_TEXTURE, header, pixels)) {
+			if (!(this.sink != null ? this.sink.send(Proto.REN_TEXTURE, header, pixels) : SkyLink.writeRender(Proto.REN_TEXTURE, header, pixels))) {
 				nextTextureId--;
 				return -1;
 			}

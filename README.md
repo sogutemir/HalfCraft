@@ -1,214 +1,140 @@
-# SkyCraft
+# HalfCraft
 
-![SkyCraft: a Minecraft player walking through Riverwood with the Minecraft HUD](docs/screenshot.jpg)
+Real Half-Life / GoldSrc + authenticated Minecraft Java / Fabric, connected through Windows shared memory. **First observation-only bridge milestone verified on 2026-10-04.** Measured results: [verified_bridge.txt](verified_bridge.txt).
 
-Play Skyrim as a Minecraft player. You move with Minecraft's physics, carry Minecraft's inventory
-and HUD, and place and break blocks in Skyrim's world. You fight Skyrim's NPCs with Minecraft
-weapons, and they fight back.
+**Current phase:** Native Half-Life movement with Minecraft inventory/crafting, chest storage, HUD/hand, renewable resource mining, block entities and campaign inventory continuity. Minecraft health, hunger and worn armor handle bridged native damage, healing and armor repair. Enemy combat uses Minecraft weapons with confirmed-kill loot and XP. Full-campaign acceptance remains incomplete; the linked reports and earlier physics results include historical baselines.
 
-Neither game is rewritten. Minecraft runs its own game logic, and Skyrim runs its world, NPCs,
-quests and saves. A Skyrim SKSE plugin and a Minecraft Fabric mod talk to each other through
-shared memory. Minecraft runs hidden in the background, and Skyrim draws everything.
+Latest combined build passed: GoldSrc host/client, C++/Java layout checks, 21 upstream Java tests, Python protocol/collision/client checks and seeded loot checks. Live native damage/fall/heal probes passed. Actual fall/explosion/Xen/turret damage, death/respawn and the latest raw/cooked beef drops still need live acceptance; build success does not establish those gameplay results.
 
-> **Status: early and experimental.** Expect rough edges, and back up your saves.
-> This is a fan project. It isn't affiliated with Mojang, Microsoft, Bethesda or ZeniMax, and you
-> need to own both games.
+Nearby Minecraft blocks now stop native HL NPCs through invisible engine solids; mining removes solids and placement recreates them. [NPC collision, live checks and streaming limits](docs/npc_blocks.md). Wall/dirt-edge jump trap also fixed and live-tested.
 
-## What works
+## Play from Half-Life
 
-- **Movement:** Minecraft movement on Skyrim's terrain and buildings. That covers walking,
-  sprinting, jumping, crouching, swimming and falling, and Skyrim's collision is fed into
-  Minecraft's own collision.
-- **Blocks:** place and break blocks anywhere in Skyrim. They're drawn inside Skyrim's frame
-  with its sun, shadows, fog and weather. Minecraft lights (torches, lava, glowstone and so on)
-  light up Skyrim.
-- **Digging into Skyrim:** mine Skyrim's ground, rocks, roads and objects like Minecraft blocks.
-  What you dig out drops as the block it's made of (dirt under grass, then stone with ores, then
-  bedrock), and the hole is real for you, NPCs and items. TNT, creepers and other explosions blow
-  craters into Skyrim. Interiors and caves are solid stone behind their walls. What you dig is
-  saved in your Minecraft world. **Skyrim destruction: On/Off** in the top left of the pause menu
-  (O) turns it off (holes already dug stay).
-- **Block entities:** chests, beds, banners, heads, shulker boxes and similar blocks are drawn,
-  and pistons move blocks.
-- **Water and lava:** they flow over Skyrim's terrain, and Skyrim water swims like Minecraft
-  water.
-- **Combat:** hit Skyrim NPCs with any Minecraft weapon, including bows, tridents and TNT.
-  Damage is scaled to NPC level, and NPCs fight back.
-  - NPCs collide with blocks and path around them.
-  - Lava and fire hurt NPCs, and NPCs press pressure plates.
-- **Skyrim progression:**
-  - Your Skyrim skills level up from Minecraft play. Swords, maces and tools train
-    One-Handed; axes and spears train Two-Handed; bows and anything thrown train Archery.
-  - Shields train Block, and hits taken train Light or Heavy Armor depending on what you wear.
-  - Crafting gear trains Smithing, and crouching is Skyrim sneak, which trains Sneak.
-- **Camera and death:** Minecraft's F5 camera modes show your skin and armor in Skyrim. Dying
-  gives Skyrim's death camera with your Minecraft body ragdolling.
-- **Skyrim's own animations:** chairs, crafting stations, beds, pull levers, horses and scripted
-  scenes hand control to Skyrim until they finish.
-- **Multiplayer (Minecraft side only):** friends who also run SkyCraft can join your Minecraft
-  world over the internet (see [Playing with friends](#playing-with-friends)).
+Build/deploy now includes both `dlls/hl.dll` and `cl_dlls/client.dll`. Launch dedicated games, then F10 console:
 
-## Requirements
-
-**Skyrim**
-
-| | |
-|---|---|
-| Skyrim Special Edition, **Anniversary Edition runtime** (1.6.x / 1.7.x) | Developed and tested on **1.7.104**. Not SE 1.5.97, not VR. |
-| [SKSE64](https://skse.silverlock.org/) | For your game version |
-| [Address Library for SKSE Plugins](https://www.nexusmods.com/skyrimspecialedition/mods/32444) | The "All in one (Anniversary Edition)" file |
-
-> **Heavily recommended: [Alternate Start - Live Another Life](https://www.nexusmods.com/skyrimspecialedition/mods/272).**
-> Skyrim's opening (the cart ride and Helgen) is heavily scripted and may not work with SkyCraft,
-> so you can get stuck. Alternate Start skips it and lets you choose where your new character
-> begins. Otherwise, play from a save made after Helgen.
-
-**Minecraft**
-
-You only need **a Microsoft account that owns Minecraft: Java Edition**. SkyCraft comes with
-everything else: a portable [Prism Launcher](https://prismlauncher.org/) set up with Minecraft 26.3,
-[Fabric](https://fabricmc.net/), [Fabric API](https://modrinth.com/mod/fabric-api) and the SkyCraft
-Minecraft mod. Prism downloads Minecraft and Java itself.
-
-Minecraft runs hidden next to Skyrim. Budget about 3 GB of extra RAM, about 1.5 GB of disk for
-Minecraft's own files, and a GPU that runs Minecraft 26.3.
-
-## Installing
-
-1. **Install `SkyCraft-<version>.zip`** with Mod Organizer 2 or Vortex, like any SKSE plugin.
-2. **Start Skyrim through SKSE.** The first time, SkyCraft unpacks its Minecraft to
-   `%LOCALAPPDATA%\SkyCraft` and a small **Prism Launcher** window asks you to sign in with your
-   Microsoft account. Alt-Tab to it, sign in, then go back to Skyrim. Prism downloads Minecraft,
-   Fabric and Java (a few minutes, first time only), and Skyrim's corner messages tell you when
-   Minecraft is ready.
-3. **After that it's automatic.** Minecraft starts with Skyrim with no window and no sound, opens
-   its SkyCraft world by itself (a new Survival world, created on your PC), and quits when Skyrim
-   closes.
-
-Updating: install the new SkyCraft zip over the old one. The next start updates the Minecraft side
-too and keeps your sign-in and your world.
-
-Uninstalling: remove the mod, then delete `%LOCALAPPDATA%\SkyCraft`. That folder holds Prism, your
-Microsoft sign-in (Prism's), Minecraft's files and your SkyCraft world.
-
-### Using your own launcher
-
-`Data/SKSE/Plugins/SkyCraft.ini` can point SkyCraft at your own Prism, MultiMC or `.bat` file instead:
-
-```ini
-[Minecraft]
-bStartWithSkyrim = 1              ; 0: start Minecraft yourself, any way you like
-sLauncher =                       ; empty: the Minecraft that comes with SkyCraft
-sArguments = --launch SkyCraft    ; what your launcher needs to start the SkyCraft instance
+```text
+hc_physics 1
+hc_input 1
+hc_background 1
 ```
 
-Your instance needs Minecraft 26.3, Fabric Loader 0.19.5 or newer, Fabric API, Java 25 and
-`skycraft-fabric-<version>.jar` (from the release), plus `-Dskycraft.startHidden=true` in its
-JVM arguments if it should stay hidden from the start. SkyCraft never starts a second Minecraft if
-one with the mod is already running. It starts Minecraft through Windows' shell, so under Mod
-Organizer Minecraft stays outside MO2's virtual file system and doesn't keep MO2 locked.
+Close console. W/A/S/D, Space, Ctrl and mouse look retain native Half-Life movement. Left click attacks/mines with Minecraft items; right click uses them; 1–9/wheel selects the Minecraft hotbar. `I` opens inventory; `E` stays HL use outside containers. Native firing/reloading is suppressed while the bridge owns input. Inventory/container owns mouse/keyboard; Esc closes container. Console/menu/focus loss releases forwarded keys. Input/physics default OFF; save/load suspends physics, so enable it again after loading.
 
-## Playing with friends
+Nearby baked models and animated block entities use real textures and native depth. Vanilla HUD/held item/screens appear over HL. Map-specific worlds keep blocks separate; campaign inventory/armor/offhand/ender inventory/recipes/XP/health/hunger follow map changes. Minecraft saves remain independent of HL save-slot rollback. Renewable resource mining uses vanilla tools and smelting with 5× mining progress; it does not cut holes in the native BSP.
 
-Everyone needs their own Skyrim with SkyCraft. Only the Minecraft world is shared: blocks, items,
-mobs and each other. Up to 100 players. Each player keeps their own Skyrim world, NPCs and quests.
+Confirmed bridge enemy kills grant 100 XP (normal), 200 XP (military), or 500 XP (heavy), plus arrows, feathers, gunpowder, string and a chance of a bow. Beef drops are 2–4 per rewarded kill; a fire-marked lethal hit selects cooked beef. Native/environmental kills and delayed fire deaths are not covered by this reward path. Military gun/ammo `DropItem` calls are suppressed while Minecraft vitals own the player; map-authored pickups remain.
 
-1. **Host:** press **O** (Minecraft's menu), choose **Open to LAN**, then **Start LAN World**.
-   SkyCraft's bundled [e4mc](https://modrinth.com/mod/e4mc) puts a link like `abc-def.e4mc.link`
-   in chat. Click it to copy it, then send it to your friends.
-2. **Friends:** press **T** and type `/join abc-def.e4mc.link`. Your Minecraft leaves its own
-   world and joins the host's.
-3. **`/leave`** goes back to your own world. If the host closes their world, you're put back in
-   yours automatically.
-
-**With Discord:** your Discord status shows SkyCraft while you play. Once you've opened your world
-to LAN it has a **Join** button (and you can invite friends from a Discord chat). A friend with
-Skyrim and SkyCraft already running clicks it and joins you, no link needed.
-
-## Controls
-
-Minecraft has priority. These keys still go to Skyrim:
-
-| Key | Does |
-|---|---|
-| **G** | Skyrim activate: doors, NPCs (talk), containers, levers, furniture |
-| **Esc** | Skyrim menu (or closes an open Minecraft screen) |
-| **J** / **M** | Skyrim journal / map |
-| **H** | Skyrim wait |
-| **F9** | Skyrim quickload (save from the Esc menu) |
-| **~** | Skyrim console |
-| **O** | Minecraft pause / options menu |
-
-Every other key is Minecraft's: **E** inventory, **F5** camera, **T** chat, **/** commands,
-**Shift** crouch/sneak, and so on.
-
-## Known limitations
-
-- If something goes wrong, `Documents\My Games\Skyrim Special Edition\SKSE\SkyCraft.log` says what.
-  For bug reports, set `bDiagnostics = 1` in `SkyCraft.ini` for detailed logs.
-- **Stuck on "SkyCraft: starting Minecraft..."?** After a minute SkyCraft says which of these it is:
-  - Prism Launcher is still busy. Alt-Tab to it: it may be downloading, or need you to sign in,
-    or show an error.
-  - Minecraft closed. Its log is
-    `%LOCALAPPDATA%\SkyCraft\Prism\instances\SkyCraft\.minecraft\logs\latest.log`.
-  - Minecraft is running but not responding. Please report it, with `SkyCraft.log` and that
-    `latest.log`.
-
-  You need to own Minecraft: Java Edition.
-
-- Skyrim's opening (cart ride and Helgen) may leave you stuck. Use
-  [Alternate Start](https://www.nexusmods.com/skyrimspecialedition/mods/272) or a save made after Helgen.
-- Skyrim's inventory, magic, shouts and perks can't be opened while Minecraft drives the player.
-- Minecraft hits only reach NPCs, not Skyrim objects such as the web around Arvel in Bleak Falls
-  Barrow. There's no in-game switch back to plain Skyrim yet. Closing Minecraft hands control
-  back to Skyrim; Minecraft keeps what it last autosaved, every few minutes. Deal with the object,
-  then restart Skyrim to bring Minecraft back.
-- Sign text isn't drawn yet.
-- All Skyrim interiors share one Minecraft world, so blocks placed in one interior can appear in
-  another at the same coordinates.
-- Multiplayer syncs only the Minecraft world. Each player has their own Skyrim, and guests
-  can't hit their own Skyrim NPCs yet.
-- Mods that also take over the camera (Improved Camera SE, SmoothCam, True Directional Movement)
-  will conflict.
-
-## Building from source
-
-You need Visual Studio 2026 (C++), CMake 3.25+, Git, and JDK 25.
-
-```bat
-git clone --recursive <this repo> skycraft
-cd skycraft
-git clone https://github.com/microsoft/vcpkg .tools\vcpkg
-.tools\vcpkg\bootstrap-vcpkg.bat
-
-cd skse
-cmake --preset default
-cmake --build --preset release
-
-cd ..\fabric
-gradlew build
-
-cd ..
-powershell -ExecutionPolicy Bypass -File tools\package.ps1 -NoBuild
+```powershell
+python C:\HalfCraftBridge\tools\client_status.py
+python C:\HalfCraftBridge\tools\verify_client.py
+python C:\HalfCraftBridge\tools\verify_depth.py
+python C:\HalfCraftBridge\tools\verify_background.py
+python C:\HalfCraftBridge\tools\verify_client_transition.py
 ```
 
-`tools\package.ps1` builds both halves (drop `-NoBuild`) and writes the release files to `dist\`.
+Renderer bounded to27nearby sections,OpenGL,opaque/cutout block mesh and4MiB block-entity messages. Full mob/particle/translucent fluid rendering remains pending. Dedicated Prism JVM uses8GB minimum/16GB maximum heap.60s memory soak passed after collision debug-gizmo removal.
 
-For development:
+## Historical bounded physics experiment
 
-- `fabric\gradlew runClient` starts a dev Minecraft that stays running when Skyrim closes.
-- With `SKYCRAFT_DEPLOY_DIR` (preset default: the MO2 mod folder `mods\SkyCraft`, if it exists),
-  each plugin build is copied straight into Mod Organizer.
-- `docs\DESIGN.md` explains how the two halves fit together, and `protocol\skycraft_protocol.h`
-  is the shared-memory layout both sides follow.
+The following movement results describe the earlier Minecraft-driven prototype. Current movement authority is GoldSrc; Minecraft follows native feet/pose. Dedicated worlds now span y=-1024 through y=1023, and the old y=-64 test floor is removed during migration.
 
-| Folder | |
-|---|---|
-| `skse/` | The Skyrim SKSE plugin (C++, [CommonLibSSE-NG](https://github.com/alandtse/CommonLibVR/tree/ng)) |
-| `fabric/` | The Minecraft Fabric mod (Java) |
-| `protocol/` | The shared-memory protocol between them |
-| `tools/` | Packaging, test stand-ins (`fake_skyrim.py`, `fake_guest.py`) and diagnostics |
+BSP samples feed vanilla collision without per-tick debug gizmos. Distant bedrock is test-world bottom. Activation disables flight and waits for server teleport before puppet acknowledgement; OFF restores prior position/flight state. `python C:\HalfCraftBridge\tools\verify_spawn.py` checks grounded spawn/restore.
 
-## License
+Launch both dedicated games, open Half-Life console with F10:
 
-[MIT](LICENSE)
+```text
+hc_physics 1
+hc_physics 0
+```
+
+`1` streams nearby BSP samples, aligns Minecraft feet once, then lets real Minecraft movement drive Half-Life player. Use Minecraft window with `hc_input 0`, or Half-Life window with `hc_input 1`. `0` restores native HL control and prior Minecraft test-world position. Physics defaults OFF.
+
+```powershell
+python C:\HalfCraftBridge\tools\physics_status.py
+python C:\HalfCraftBridge\tools\verify_physics.py --seconds 65
+python C:\HalfCraftBridge\tools\verify_physics_fallback.py
+```
+
+Final run: 2.154844 blocks walking, sampled jump rise 1.176759 blocks (another run captured 1.252203), BSP floor landing, 65-second active hold / 378 samples, settled puppet error <0.1 HL unit. Save, map transition, hull-wall rejection and peer exit fallback passed; c1a0 campaign regression passed.
+
+Dedicated physics worlds use vanilla flat generator: bedrock floor at y=-64, air above. Original `HalfCraftBridge` Survival world retained. Preset reopening automatically backs up dedicated physics worlds. Collision mapping `Local\HalfCraft_collision_v1`, protocol version 2: 4288 bytes, 8³ blocks, 4³ occupancy samples/block, 10 HL units/sample. Slopes/thin surfaces, crouch hull, elevators/trains/ladders/liquids remain bounded. GoldSrc hull mismatches use correction/ack; native takeovers release control.
+
+Half-Life owns movement, BSP maps, NPCs, doors, triggers, scripts, campaign and rendering. Minecraft executes blocks, inventory, combat item rules and vitals; client bridge draws exported blocks inside Black Mesa.
+
+## Preserved projects and provenance
+
+- Native / Legacy: `C:\HalfCraftDev`; runtime `K:\SteamLibrary\steamapps\common\Half-Life\halfcraft`. Both preservation tags and original dirty work retained; [baseline](docs/native_halfcraft_baseline.md).
+- Bridge workspace: `C:\HalfCraftBridge`; separate runtime `K:\SteamLibrary\steamapps\common\Half-Life\halfcraft_bridge`.
+- Canonical SkyCraft upstream / `upstream` remote: https://github.com/chasmlol/SkyCraft.
+- Migration base: `bfcaf178524b92c2cdeb88e4ce0f13ef9ded6f32`.
+- Original upstream history and attribution are retained; `upstream` remains available for future updates.
+- Root MIT `LICENSE` and `THIRD-PARTY-NOTICES.md` preserved. Valve SDK submodule has its own license, pin `b1b5cf5892918535619b2937bb927e46cb097ba1`. No LibertyCraft GPL host code imported.
+- [Archived upstream README](docs/skycraft_upstream_readme.md), [SkyCraft audit](docs/skycraft_architecture_audit.md), [LibertyCraft notes](docs/libertycraft_port_notes.md), [design](docs/HALFCRAFT_DESIGN.md), [coordinates](docs/coordinate_mapping.md).
+
+## Build, deploy, launch
+
+Requires Windows, VS2022 C++ tools/v143 + Windows SDK, Python, Java 25, owned Half-Life and Minecraft Java. Local Java: `C:\Users\sogut\jdk\jdk-25.0.1+8`. Fabric uses Minecraft `26.3`, loader `0.19.5`, Fabric API `0.161.0+26.3`.
+
+Clone with `git clone --recurse-submodules <repository-url>`, or run `git submodule update --init --recursive` after cloning. Set `JAVA_HOME` to your Java 25 installation. The example paths and runtime defaults below match the development machine; review `tools/deploy.ps1` and `tools/launch-dev.ps1` for your Half-Life installation. `tools/package.ps1` is the preserved upstream Skyrim packager, not a HalfCraft release command.
+
+```powershell
+# Combined build: host, Fabric, C++/Java layouts, protocol and coordinate checks
+powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\build.ps1
+
+# Separate builds
+powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\build.ps1 -HostOnly
+powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\build.ps1 -FabricOnly
+
+# Close Half-Life before deployment
+powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\deploy.ps1
+powershell -ExecutionPolicy Bypass -File C:\HalfCraftBridge\tools\launch-dev.ps1
+python C:\HalfCraftBridge\tools\bridge_status.py
+```
+
+Host-first startup experimentally verified; guest opens host-created mapping. Both windows remain visible. Portable Prism `11.1.1` and dedicated instance/world `HalfCraftBridge` live under ignored `local/`. Prism requires normal Microsoft/Mojang ownership authentication. Existing launcher `H:\Games\Minecraft Launcher` is not used or modified. Dedicated normal Survival world opens after connection; seed 17, cheats enabled, no position takeover. Existing worlds and account configuration are retained. Save/shutdown must finish before relaunch.
+
+Launch avoids starting another Half-Life process if one already exists; that existing process must be running `halfcraft_bridge`. `-HostOnly` launches only host. Runtime inherits assets through `fallback_dir "valve"`; deploy writes only `halfcraft_bridge`.
+
+## What ran
+
+- Real `c1a0` + real Minecraft world: host PID `14764`, guest PID `30100`, matching session `38334492`.
+- 65.031 seconds / 66 samples: both heartbeats continuously alive; maximum sample ages 110 ms each.
+- Map, HL origin/view angles, MC position/velocity/world/`onGround` visible in shared memory and rate-limited game logs. Manual native movement changes observed on both sides; neither adapter forces movement.
+- Normal guest exit/relaunch and host exit/relaunch passed; surviving game remained running. Final reconnect host PID `10796`, guest PID `9108`, session `38808506`.
+- `c1a0` baseline: 17 NPCs, 61 scripts, 16 doors. Six-second sample: 16 NPC changes, 6 door changes, 5 scripted NPC changes. After native save/load: 16 NPC changes, 8 scripted NPC changes.
+- `c1a0 → c1a1 → c1a0`, native save/load, protocol rejection/heartbeat/reconnect and 1000 coordinate round trips passed.
+
+## Protocol v1
+
+`protocol/halfcraft_protocol.h` is authoritative. Mapping `Local\HalfCraft_v1`, magic `0x46435248` (`HRCF`), version 1; little-endian, fixed-width fields, 8-byte struct alignment, total 384 bytes.
+
+| Region | Absolute offset | Bytes | Fields |
+|---|---:|---:|---|
+| Header | 0 | 64 | magic, version, byte size, reserved |
+| Host | 64 | 192 | seqlock, PID, heartbeat, state, session, player flag, start time; map at +32, origin double[3] at +96, angles float[3] at +120 |
+| Guest | 256 | 128 | seqlock, PID, heartbeat, state, host session, world flag, onGround, connection start; position double[3] at +32, velocity double[3] at +56 |
+
+States: `DISCONNECTED=0`, `HOST_READY=1`, `GUEST_READY=2`, `CONNECTED=3`, `LINK_ERROR=4`, `SHUTDOWN=5`. Each endpoint owns its region, publishes through aligned 32-bit seqlocks, ticks every 100 ms on independent thread. `GetTickCount()` modulo 2³², timeout 8000 ms, PID/session validation and named owner mutexes. Peer exit does not close surviving game.
+
+## Reuse and added sources
+
+SkyCraft Gradle/Loom/Fabric toolchain, Java FFM kernel32 access, seqlock transport and `MirrorWorld` lifecycle approach reused. `fabric/build.gradle` adds `-Phalfcraft` resource profile. New `dev.halfcraft` guest entrypoint/link/world opens normal world and exchanges observations. Original `dev.skycraft` sources compile but SkyCraft entrypoints and mixins are disabled in HalfCraft jar. Skyrim `skse/`, original protocol and tools remain isolated reference.
+
+GoldSrc additions: `goldsrc/host.cpp`, `cbase_bridge.cpp`, `bridge.props`, `layout_check.cpp`, `runtime/liblist.gam`, `runtime/autoexec.cfg`, licensed `sdk` submodule and provenance README. Wrappers call original SDK callbacks; no dependency on legacy workspace. Tools include build/deploy/launch, authenticated instance setup, status, fake endpoints and real acceptance checks.
+
+## Repeat checks
+
+```powershell
+python C:\HalfCraftBridge\tools\test_protocol.py
+python C:\HalfCraftBridge\tools\verify_live.py --seconds 65 --output C:\HalfCraftBridge\local\heartbeat-65s.json
+python C:\HalfCraftBridge\tools\verify_campaign.py
+python C:\HalfCraftBridge\tools\verify_reconnect.py
+```
+
+Real checks require dedicated connected games. Campaign check changes maps and isolated `hc_bridge_acceptance` save slot. Reconnect check normally closes/restarts each dedicated game. Raw evidence stays in ignored `local/`; report contains only relevant measurements. Proprietary game assets/binaries and account credentials excluded from Git.
+
+## Limits and next milestone
+
+First observation milestone above is historical. Current limits: sampled Minecraft block/item collision, translucent fluids, general mob/particle rendering, full native damage/death acceptance and save-slot rollback. Native movement and enemy logic run; Minecraft natural mob spawning is disabled in dedicated worlds. Existing mobs are not deleted. One host/guest pair per Windows login; 40 HL units/block.
+
+Next scope: actual damage-source and death/respawn checks, raw/cooked kill rewards, full campaign traversal and resource balance. See [roadmap](docs/playability_roadmap.md) for earlier milestone context.

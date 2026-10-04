@@ -378,7 +378,10 @@ public final class WorldExporter {
 
 	/** Side, top and bottom atlas rects of a full-cube block's model, cached per block state. */
 	private static float[] cubeFaces(Minecraft minecraft, BlockState state) {
-		return CUBE_FACES.computeIfAbsent(state, s -> {
+		return CUBE_FACES.computeIfAbsent(state, s -> cubeFaces(minecraft,s,atlas));
+	}
+
+	static float[] cubeFaces(Minecraft minecraft, BlockState s, SkyAtlas atlas) {
 			var model = minecraft.getModelManager().getBlockStateModelSet().get(s);
 			var parts = new ArrayList<net.minecraft.client.renderer.block.dispatch.BlockStateModelPart>();
 			RANDOM.setSeed(42);
@@ -400,11 +403,10 @@ public final class WorldExporter {
 				System.arraycopy(atlas.rect(sprite), 0, out, f * 4, 4);
 			}
 			return out;
-		});
 	}
 
 	/** Grass and leaves are grey in the atlas; Minecraft tints them. RGBA8, 0 for none. */
-	private static int cubeTint(Minecraft minecraft, BlockState state) {
+	static int cubeTint(Minecraft minecraft, BlockState state) {
 		var sources = minecraft.getBlockColors().getTintSources(state);
 		if (sources.isEmpty() || sources.getFirst() == null) {
 			return 0;
@@ -435,6 +437,10 @@ public final class WorldExporter {
 
 	/** The item's icon in the combined atlas {u0, v0, u1, v1}, or null. */
 	private static float[] iconUv(Minecraft minecraft, ClientLevel level, ItemStack stack) {
+		return iconUv(minecraft,level,stack,atlas);
+	}
+
+	static float[] iconUv(Minecraft minecraft, ClientLevel level, ItemStack stack, SkyAtlas atlas) {
 		minecraft.getItemModelResolver().updateForTopItem(ITEM_STATE, stack, ItemDisplayContext.GROUND, level, null, 0);
 		RANDOM.setSeed(0);
 		var material = ITEM_STATE.pickParticleMaterial(RANDOM);
@@ -469,7 +475,9 @@ public final class WorldExporter {
 	 * Collects Minecraft's block quads (and fluid vertices) as triangles in the RenVertex layout:
 	 * section-relative position, combined-atlas UV, RGBA colour (tint and shading), block/sky light.
 	 */
-	private static final class MeshBuilder implements net.minecraft.client.renderer.block.BlockQuadOutput, FluidRenderer.Output, VertexConsumer {
+	static final class MeshBuilder implements net.minecraft.client.renderer.block.BlockQuadOutput, FluidRenderer.Output, VertexConsumer {
+		SkyAtlas halfcraftAtlas;
+		boolean opaqueOnly;
 		private ByteBuffer buf = ByteBuffer.allocateDirect(1 << 20).order(ByteOrder.LITTLE_ENDIAN);
 		private int vertices;
 		// fluid quad assembly
@@ -548,6 +556,7 @@ public final class WorldExporter {
 			this.ensure(6 * Proto.REN_VERTEX_BYTES);
 			TextureAtlasSprite sprite = quad.materialInfo().sprite();
 			boolean translucent = quad.materialInfo().layer().translucent();
+			if (opaqueOnly && translucent) return;
 			int emission = quad.materialInfo().lightEmission();
 			// Plants and the like are shaded as if facing up whatever way they face: no normal for them.
 			Direction override = quad.materialInfo().shadeDirectionOverride();
@@ -557,9 +566,10 @@ public final class WorldExporter {
 			for (int k : new int[] { 0, 1, 2, 0, 2, 3 }) {
 				var p = quad.position(k);
 				long uv = quad.packedUV(k);
-				float u = atlas.u(sprite, UVPair.unpackU(uv));
-				float v = atlas.v(sprite, UVPair.unpackV(uv));
-				this.vertex(p.x() + x, p.y() + y, p.z() + z, u, v, unshade(instance.getColor(k), shade), instance.getLightCoordsWithEmission(k, emission), flags);
+				SkyAtlas textures = halfcraftAtlas != null ? halfcraftAtlas : atlas;
+				float u = textures.u(sprite, UVPair.unpackU(uv));
+				float v = textures.v(sprite, UVPair.unpackV(uv));
+				this.vertex(p.x() + x, p.y() + y, p.z() + z, u, v, halfcraftAtlas != null ? instance.getColor(k) : unshade(instance.getColor(k), shade), instance.getLightCoordsWithEmission(k, emission), flags);
 			}
 		}
 
